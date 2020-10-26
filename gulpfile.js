@@ -10,6 +10,7 @@ var csslint = require('gulp-csslint');
 var cleanCSS = require('gulp-clean-css');
 var sourcemaps = require('gulp-sourcemaps');
 var testcafe = require('gulp-testcafe');
+var jest = require('gulp-jest').default;
 var paths = {
   src: 'src',
   srcFiles: 'src/**/*',
@@ -42,12 +43,6 @@ gulp.task('integration-tests', gulp.series('unit-tests', function () {
 }));
 
 gulp.task('addAssets', gulp.series('integration-tests', function () {
-  var fontawesomeCSS = gulp.src('node_modules/font-awesome/css/font-awesome.min.css')
-    .pipe(gulp.dest(paths.demoCSSFolder));
-
-  var fontawesomeFonts = gulp.src('node_modules/font-awesome/fonts/*')
-    .pipe(gulp.dest(paths.demo + '/fonts'));
-
   var jsFiles = gulp.src([
       paths.srcJS,
       'node_modules/jquery/dist/jquery.min.js',
@@ -60,13 +55,21 @@ gulp.task('addAssets', gulp.series('integration-tests', function () {
   var cssFiles = gulp.src(paths.srcCSS)
     .pipe(gulp.dest(paths.demoCSSFolder));
 
-  return merge(fontawesomeCSS, fontawesomeFonts, jsFiles, cssFiles);
+  return merge(jsFiles, cssFiles);
 }));
+
+gulp.task('visual-regression', function () {
+  return gulp.src('test').pipe(jest({
+    "testMatch": ['**/test/visual-regression/**/test.js']
+  }));
+});
 
 gulp.task('e2e-tests', gulp.series('addAssets', function () {
   return gulp.src('test/e2e/**/test.js')
     .pipe(testcafe({ browsers: ['chrome:headless', 'firefox:headless'] }));
 }));
+
+gulp.task('test', gulp.series('e2e-tests', 'visual-regression'));
 
 gulp.task('cleanupJS', function() {
   return del([paths.distJSFolder + '/**']);
@@ -78,7 +81,7 @@ gulp.task('eslint', function () {
     .pipe(eslint.failOnError());
 });
 
-gulp.task('js', gulp.series('cleanupJS', 'eslint', 'e2e-tests', function () {
+gulp.task('js', gulp.series('cleanupJS', 'eslint', 'test', function () {
   return gulp.src(paths.srcJS)
     .pipe(gulp.dest(paths.distJSFolder))
     .pipe(sourcemaps.init())
